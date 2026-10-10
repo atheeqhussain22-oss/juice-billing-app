@@ -45,18 +45,17 @@ class BillingScreen extends StatefulWidget {
 }
 
 class _BillingScreenState extends State<BillingScreen> {
-  // Customer Details
   final _customerController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
   String _paymentMode = 'CASH';
 
-  // Manual Item Entry Controllers
   final _itemNameController = TextEditingController();
   final _itemPriceController = TextEditingController();
   final _itemQtyController = TextEditingController(text: '1');
 
   final List<Map<String, dynamic>> _cart = [];
+  final List<Offset?> _points = []; // Stores user touch points
 
   void _addManualItem() {
     final name = _itemNameController.text.trim();
@@ -112,6 +111,9 @@ class _BillingScreenState extends State<BillingScreen> {
       items: _cart,
     );
 
+    // Convert drawn points for the PDF
+    final serializedPoints = _points.map((p) => p != null ? [p.dx, p.dy] : [null, null]).toList();
+
     await PdfInvoiceService.generateAndShareInvoice(
       billId: billId,
       customerName: customer,
@@ -121,6 +123,7 @@ class _BillingScreenState extends State<BillingScreen> {
       paymentMode: _paymentMode,
       totalAmount: _total,
       items: _cart,
+      signaturePoints: serializedPoints,
     );
 
     if (mounted) {
@@ -129,6 +132,7 @@ class _BillingScreenState extends State<BillingScreen> {
         _customerController.clear();
         _phoneController.clear();
         _addressController.clear();
+        _points.clear();
       });
     }
   }
@@ -147,7 +151,6 @@ class _BillingScreenState extends State<BillingScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Store Header Details Card
               Card(
                 color: Colors.blue.shade50,
                 child: const Padding(
@@ -164,7 +167,6 @@ class _BillingScreenState extends State<BillingScreen> {
               ),
               const SizedBox(height: 10),
 
-              // Customer Details
               const Text('Customer Details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
               const SizedBox(height: 8),
               TextField(
@@ -203,7 +205,6 @@ class _BillingScreenState extends State<BillingScreen> {
               ),
               const Divider(height: 30),
 
-              // Manual Item Entry Section
               const Text('Add Particulars & Rate', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
               const SizedBox(height: 8),
               TextField(
@@ -244,7 +245,6 @@ class _BillingScreenState extends State<BillingScreen> {
               ),
               const Divider(height: 30),
 
-              // Items Table / Cart
               const Text('Items Added in Bill', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
               const SizedBox(height: 8),
               _cart.isEmpty
@@ -284,6 +284,45 @@ class _BillingScreenState extends State<BillingScreen> {
                     ),
 
               const SizedBox(height: 16),
+
+              // Interactive Digital Signature Box
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Draw Signature Here:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  TextButton.icon(
+                    icon: const Icon(Icons.clear, color: Colors.red),
+                    label: const Text('Clear Sign', style: TextStyle(color: Colors.red)),
+                    onPressed: () => setState(() => _points.clear()),
+                  ),
+                ],
+              ),
+              Container(
+                height: 110,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.blue.shade900, width: 1.5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: GestureDetector(
+                  onPanUpdate: (DragUpdateDetails details) {
+                    RenderBox? renderBox = context.findRenderObject() as RenderBox?;
+                    if (renderBox != null) {
+                      setState(() {
+                        _points.add(details.localPosition);
+                      });
+                    }
+                  },
+                  onPanEnd: (DragEndDetails details) => _points.add(null),
+                  child: CustomPaint(
+                    painter: SignaturePainter(points: _points),
+                    size: Size.infinite,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
@@ -306,6 +345,29 @@ class _BillingScreenState extends State<BillingScreen> {
       ),
     );
   }
+}
+
+// Custom Painter for Drawing on Canvas
+class SignaturePainter extends CustomPainter {
+  final List<Offset?> points;
+  SignaturePainter({required this.points});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFF0D47A1)
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 2.5;
+
+    for (int i = 0; i < points.length - 1; i++) {
+      if (points[i] != null && points[i + 1] != null) {
+        canvas.drawLine(points[i]!, points[i + 1]!, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(SignaturePainter oldDelegate) => true;
 }
 
 class HistoryScreen extends StatefulWidget {
