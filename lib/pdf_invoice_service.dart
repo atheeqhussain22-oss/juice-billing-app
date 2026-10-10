@@ -7,16 +7,13 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 
 class PdfInvoiceService {
-  // Helper to convert number to Indian currency words
   static String convertToWords(int n) {
     if (n == 0) return "Zero";
-
     final units = [
       "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
       "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
       "Seventeen", "Eighteen", "Nineteen"
     ];
-
     final tens = [
       "", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"
     ];
@@ -38,7 +35,6 @@ class PdfInvoiceService {
     }
 
     String words = "";
-
     if ((n ~/ 10000000) > 0) {
       words += "${formatChunk(n ~/ 10000000)} Crore ";
       n %= 10000000;
@@ -54,7 +50,6 @@ class PdfInvoiceService {
     if (n > 0) {
       words += formatChunk(n);
     }
-
     return "${words.trim()} Only";
   }
 
@@ -67,6 +62,7 @@ class PdfInvoiceService {
     required String paymentMode,
     required double totalAmount,
     required List<Map<String, dynamic>> items,
+    List<List<double?>>? signaturePoints,
   }) async {
     final pdf = pw.Document();
     final formattedDate = DateFormat('dd/MM/yyyy').format(DateTime.parse(dateTime));
@@ -91,11 +87,9 @@ class PdfInvoiceService {
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    // Top Left: Logo Badge & Prop Details
                     pw.Row(
                       crossAxisAlignment: pw.CrossAxisAlignment.center,
                       children: [
-                        // Stylized Logo Icon
                         pw.Container(
                           width: 48,
                           height: 48,
@@ -106,11 +100,7 @@ class PdfInvoiceService {
                           alignment: pw.Alignment.center,
                           child: pw.Text(
                             'AE',
-                            style: pw.TextStyle(
-                              color: PdfColors.white,
-                              fontSize: 22,
-                              fontWeight: pw.FontWeight.bold,
-                            ),
+                            style: pw.TextStyle(color: PdfColors.white, fontSize: 22, fontWeight: pw.FontWeight.bold),
                           ),
                         ),
                         pw.SizedBox(width: 8),
@@ -123,8 +113,6 @@ class PdfInvoiceService {
                         ),
                       ],
                     ),
-
-                    // Top Right: Mob Numbers & Email
                     pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.end,
                       children: [
@@ -134,10 +122,9 @@ class PdfInvoiceService {
                     ),
                   ],
                 ),
-
                 pw.SizedBox(height: 6),
 
-                // Center Company Name Banner
+                // Center Company Banner
                 pw.Center(
                   child: pw.Column(
                     children: [
@@ -145,10 +132,7 @@ class PdfInvoiceService {
                         'AMAFHH ENTERPRISES',
                         style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900),
                       ),
-                      pw.Text(
-                        'RML Nagar, 2nd Cross, Shivamogga - 577 202',
-                        style: const pw.TextStyle(fontSize: 10, color: PdfColors.blue900),
-                      ),
+                      pw.Text('RML Nagar, 2nd Cross, Shivamogga - 577 202', style: const pw.TextStyle(fontSize: 10, color: PdfColors.blue900)),
                       pw.SizedBox(height: 4),
                       pw.Container(
                         padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 3),
@@ -164,10 +148,9 @@ class PdfInvoiceService {
                     ],
                   ),
                 ),
-
                 pw.SizedBox(height: 8),
 
-                // Bill No, Date, Customer Info
+                // Bill No & Date
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
@@ -177,6 +160,7 @@ class PdfInvoiceService {
                 ),
                 pw.Divider(color: PdfColors.blue900, thickness: 1),
 
+                // Customer Info
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
@@ -194,10 +178,9 @@ class PdfInvoiceService {
                       pw.Text('Phone: $customerPhone', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
                   ],
                 ),
-
                 pw.SizedBox(height: 10),
 
-                // Items Table matching the physical slip
+                // Line Items Table
                 pw.TableHelper.fromTextArray(
                   headers: ['Sl. No.', 'Particulars', 'Qty.', 'Rate (Rs.)', 'Amount (Rs.)'],
                   data: List<List<dynamic>>.generate(items.length, (index) {
@@ -225,12 +208,11 @@ class PdfInvoiceService {
 
                 pw.Spacer(),
 
-                // Bottom Section: Words, Grand Total & Digital Sign
+                // Bottom: Amount In Words & Grand Total Box
                 pw.Container(
                   decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.blue900, width: 1)),
                   child: pw.Row(
                     children: [
-                      // Bottom Left: Rupees in words
                       pw.Expanded(
                         flex: 3,
                         child: pw.Container(
@@ -245,7 +227,6 @@ class PdfInvoiceService {
                           ),
                         ),
                       ),
-                      // Bottom Right: Grand Total Box
                       pw.Expanded(
                         flex: 2,
                         child: pw.Container(
@@ -263,25 +244,47 @@ class PdfInvoiceService {
                     ],
                   ),
                 ),
+                pw.SizedBox(height: 8),
 
-                pw.SizedBox(height: 10),
-
-                // Signature Stamp Bottom Right
+                // Digital Sign Input Rendering on PDF
                 pw.Align(
                   alignment: pw.Alignment.centerRight,
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.center,
                     children: [
                       pw.Text('For: AMAFHH ENTERPRISES', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
-                      pw.SizedBox(height: 6),
-                      // Digital Signature Stamp
+                      pw.SizedBox(height: 4),
                       pw.Container(
-                        padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                        width: 130,
+                        height: 45,
                         decoration: pw.BoxDecoration(
-                          border: pw.Border.all(color: PdfColors.blue900, width: 1),
-                          borderRadius: pw.BorderRadius.circular(4),
+                          border: pw.Border.all(color: PdfColors.blue300, width: 1),
+                          color: PdfColors.grey100,
                         ),
-                        child: pw.Text('Digitally Signed by ASM', style: const pw.TextStyle(fontSize: 8, color: PdfColors.blue900, fontStyle: pw.FontStyle.italic)),
+                        child: (signaturePoints != null && signaturePoints.isNotEmpty)
+                            ? pw.CustomPaint(
+                                painter: (PdfGraphics canvas, PdfPoint size) {
+                                  canvas.setColor(PdfColors.blue900);
+                                  canvas.setLineWidth(1.5);
+                                  for (int i = 0; i < signaturePoints.length - 1; i++) {
+                                    final p1 = signaturePoints[i];
+                                    final p2 = signaturePoints[i + 1];
+                                    if (p1[0] != null && p2[0] != null) {
+                                      // Scale to PDF box
+                                      final x1 = (p1[0]! / 300.0) * size.x;
+                                      final y1 = size.y - ((p1[1]! / 110.0) * size.y);
+                                      final x2 = (p2[0]! / 300.0) * size.x;
+                                      final y2 = size.y - ((p2[1]! / 110.0) * size.y);
+                                      canvas.moveTo(x1, y1);
+                                      canvas.lineTo(x2, y2);
+                                      canvas.strokePath();
+                                    }
+                                  }
+                                },
+                              )
+                            : pw.Center(
+                                child: pw.Text('Digitally Signed by ASM', style: const pw.TextStyle(fontSize: 8, color: PdfColors.blue900, fontStyle: pw.FontStyle.italic)),
+                              ),
                       ),
                       pw.SizedBox(height: 2),
                       pw.Text('Authorized Signatory', style: const pw.TextStyle(fontSize: 8, color: PdfColors.blue900)),
@@ -295,7 +298,6 @@ class PdfInvoiceService {
       ),
     );
 
-    // Save and Share / Download
     final pdfBytes = await pdf.save();
 
     if (kIsWeb) {
