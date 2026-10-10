@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
@@ -5,9 +6,15 @@ class DBHelper {
   static final DBHelper instance = DBHelper._init();
   static Database? _database;
 
+  // In-memory fallback if opened inside a web browser
+  final List<Map<String, dynamic>> _webBills = [];
+  final List<Map<String, dynamic>> _webBillItems = [];
+  int _webIdCounter = 1;
+
   DBHelper._init();
 
-  Future<Database> get database async {
+  Future<Database?> get database async {
+    if (kIsWeb) return null; // Web uses local memory list
     if (_database != null) return _database!;
     _database = await _initDB('juice_billing.db');
     return _database!;
@@ -49,11 +56,35 @@ class DBHelper {
     required String paymentMode,
     required List<Map<String, dynamic>> items,
   }) async {
-    final db = await instance.database;
+    final timestamp = DateTime.now().toIso8601String();
+
+    if (kIsWeb) {
+      final billId = _webIdCounter++;
+      _webBills.insert(0, {
+        'id': billId,
+        'customer_name': customerName,
+        'date_time': timestamp,
+        'total_amount': total,
+        'payment_mode': paymentMode,
+      });
+
+      for (var item in items) {
+        _webBillItems.add({
+          'bill_id': billId,
+          'item_name': item['name'],
+          'unit_price': item['price'],
+          'quantity': item['qty'],
+          'subtotal': (item['qty'] as int) * (item['price'] as double),
+        });
+      }
+      return billId;
+    }
+
+    final db = (await instance.database)!;
     return await db.transaction((txn) async {
       final billId = await txn.insert('bills', {
         'customer_name': customerName,
-        'date_time': DateTime.now().toIso8601String(),
+        'date_time': timestamp,
         'total_amount': total,
         'payment_mode': paymentMode,
       });
@@ -72,12 +103,16 @@ class DBHelper {
   }
 
   Future<List<Map<String, dynamic>>> fetchBills() async {
-    final db = await instance.database;
+    if (kIsWeb) return List.from(_webBills);
+    final db = (await instance.database)!;
     return await db.query('bills', orderBy: 'id DESC');
   }
 
   Future<List<Map<String, dynamic>>> fetchBillDetails(int billId) async {
-    final db = await instance.database;
+    if (kIsWeb) {
+      return _webBillItems.where((i) => i['bill_id'] == billId).toList();
+    }
+    final db = (await instance.database)!;
     return await db.query('bill_items', where: 'bill_id = ?', whereArgs: [billId]);
   }
 }
