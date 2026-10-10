@@ -28,6 +28,13 @@ jobs:
       - name: Create Skeleton Android Project
         run: flutter create . --platforms=android --project-name=juice_billing_app
 
+      - name: Enforce Min Android SDK 23
+        run: |
+          sed -i 's/minSdkVersion = flutter.minSdkVersion/minSdkVersion = 23/g' android/app/build.gradle || true
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 23/g' android/app/build.gradle || true
+          sed -i 's/minSdk = flutter.minSdk/minSdk = 23/g' android/app/build.gradle.kts || true
+          sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 23/g' android/app/build.gradle.kts || true
+
       - name: Get Dependencies
         run: flutter pub get
 
