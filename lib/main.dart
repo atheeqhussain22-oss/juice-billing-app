@@ -7,18 +7,18 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const MaterialApp(
     debugShowCheckedModeBanner: false,
-    home: ZeeSipApp(),
+    home: AmafhhApp(),
   ));
 }
 
-class ZeeSipApp extends StatefulWidget {
-  const ZeeSipApp({super.key});
+class AmafhhApp extends StatefulWidget {
+  const AmafhhApp({super.key});
 
   @override
-  State<ZeeSipApp> createState() => _ZeeSipAppState();
+  State<AmafhhApp> createState() => _AmafhhAppState();
 }
 
-class _ZeeSipAppState extends State<ZeeSipApp> {
+class _AmafhhAppState extends State<AmafhhApp> {
   int _currentIndex = 0;
 
   @override
@@ -48,7 +48,8 @@ class _BillingScreenState extends State<BillingScreen> {
   // Customer Details
   final _customerController = TextEditingController();
   final _phoneController = TextEditingController();
-  String _paymentMode = 'Cash';
+  final _addressController = TextEditingController();
+  String _paymentMode = 'CASH';
 
   // Manual Item Entry Controllers
   final _itemNameController = TextEditingController();
@@ -63,11 +64,11 @@ class _BillingScreenState extends State<BillingScreen> {
     final qty = int.tryParse(_itemQtyController.text.trim()) ?? 1;
 
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter item name')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter item/particular name')));
       return;
     }
     if (price <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter a valid price')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter a valid rate/price')));
       return;
     }
 
@@ -88,6 +89,7 @@ class _BillingScreenState extends State<BillingScreen> {
   Future<void> _saveAndSendBill() async {
     final customer = _customerController.text.trim();
     final phone = _phoneController.text.trim();
+    final address = _addressController.text.trim();
 
     if (customer.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -110,11 +112,11 @@ class _BillingScreenState extends State<BillingScreen> {
       items: _cart,
     );
 
-    // Triggers WhatsApp share with the PDF attached
     await PdfInvoiceService.generateAndShareInvoice(
       billId: billId,
       customerName: customer,
       customerPhone: phone,
+      customerAddress: address,
       dateTime: now,
       paymentMode: _paymentMode,
       totalAmount: _total,
@@ -126,6 +128,7 @@ class _BillingScreenState extends State<BillingScreen> {
         _cart.clear();
         _customerController.clear();
         _phoneController.clear();
+        _addressController.clear();
       });
     }
   }
@@ -134,8 +137,8 @@ class _BillingScreenState extends State<BillingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ZeeSip Juice Center'),
-        backgroundColor: Colors.deepOrange,
+        title: const Text('AMAFHH ENTERPRISES'),
+        backgroundColor: Colors.blue.shade900,
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
@@ -144,12 +147,34 @@ class _BillingScreenState extends State<BillingScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Customer Section
-              const Text('Customer Details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              // Store Header Details Card
+              Card(
+                color: Colors.blue.shade50,
+                child: const Padding(
+                  padding: EdgeInsets.all(10.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Prop: MD SULTAN AHMED', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      Text('Mob: 99860 53878 / 99862 68994 | WhatsApp: 90084 60450', style: TextStyle(fontSize: 12)),
+                      Text('Address: RML NAGAR 2nd CROSS, SHIVAMOGGA - 577202', style: TextStyle(fontSize: 11)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Customer Details
+              const Text('Customer Details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
               const SizedBox(height: 8),
               TextField(
                 controller: _customerController,
-                decoration: const InputDecoration(labelText: 'Customer / Shop Name', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Customer / Shop Name (To:)', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _addressController,
+                decoration: const InputDecoration(labelText: 'Customer Address (e.g. City Center)', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 8),
               Row(
@@ -158,18 +183,18 @@ class _BillingScreenState extends State<BillingScreen> {
                     child: TextField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(labelText: 'Customer Phone No.', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(labelText: 'Phone Number', border: OutlineInputBorder()),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: DropdownButtonFormField<String>(
                       value: _paymentMode,
-                      decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Payment'),
+                      decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Bill Type'),
                       items: const [
-                        DropdownMenuItem(value: 'Cash', child: Text('Cash')),
-                        DropdownMenuItem(value: 'UPI', child: Text('UPI')),
-                        DropdownMenuItem(value: 'Credit', child: Text('Credit (Udhar)')),
+                        DropdownMenuItem(value: 'CASH', child: Text('CASH BILL')),
+                        DropdownMenuItem(value: 'CREDIT', child: Text('CREDIT BILL')),
+                        DropdownMenuItem(value: 'UPI', child: Text('UPI / ONLINE')),
                       ],
                       onChanged: (val) => setState(() => _paymentMode = val!),
                     ),
@@ -179,11 +204,11 @@ class _BillingScreenState extends State<BillingScreen> {
               const Divider(height: 30),
 
               // Manual Item Entry Section
-              const Text('Add Item & Price Manually', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text('Add Particulars & Rate', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
               const SizedBox(height: 8),
               TextField(
                 controller: _itemNameController,
-                decoration: const InputDecoration(labelText: 'Item Name (e.g., Orange Juice Crate)', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Particulars (e.g. Pineapple, Mango)', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 8),
               Row(
@@ -193,7 +218,7 @@ class _BillingScreenState extends State<BillingScreen> {
                     child: TextField(
                       controller: _itemPriceController,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Price (Rs)', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(labelText: 'Rate (Rs)', border: OutlineInputBorder()),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -208,7 +233,7 @@ class _BillingScreenState extends State<BillingScreen> {
                   const SizedBox(width: 8),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepOrange,
+                      backgroundColor: Colors.blue.shade900,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
@@ -220,7 +245,7 @@ class _BillingScreenState extends State<BillingScreen> {
               const Divider(height: 30),
 
               // Items Table / Cart
-              const Text('Current Items in Bill', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text('Items Added in Bill', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
               const SizedBox(height: 8),
               _cart.isEmpty
                   ? const Padding(
@@ -236,8 +261,13 @@ class _BillingScreenState extends State<BillingScreen> {
                         return Card(
                           margin: const EdgeInsets.symmetric(vertical: 4),
                           child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: Colors.blue.shade900,
+                              foregroundColor: Colors.white,
+                              child: Text('${idx + 1}'),
+                            ),
                             title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text('Rs. ${item['price']} x ${item['qty']}'),
+                            subtitle: Text('Rate: Rs. ${item['price']}  |  Qty: ${item['qty']}'),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -256,16 +286,16 @@ class _BillingScreenState extends State<BillingScreen> {
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Total: Rs. ${_total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text('Grand Total: Rs. ${_total.toStringAsFixed(2)}', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.blue.shade900)),
                     ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700, foregroundColor: Colors.white),
                       icon: const Icon(Icons.send),
                       onPressed: _saveAndSendBill,
-                      label: const Text('Save & Send Bill'),
+                      label: const Text('Save & Share Bill'),
                     ),
                   ],
                 ),
@@ -298,8 +328,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ZeeSip Billing History'),
-        backgroundColor: Colors.deepOrange,
+        title: const Text('AMAFHH Billing History'),
+        backgroundColor: Colors.blue.shade900,
         foregroundColor: Colors.white,
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
@@ -315,20 +345,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
             itemBuilder: (context, idx) {
               final b = bills[idx];
               final date = DateTime.parse(b['date_time']);
-              final formattedDate = DateFormat('dd MMM yyyy, hh:mm a').format(date);
+              final formattedDate = DateFormat('dd/MM/yyyy').format(date);
+              final billNum = b['id'].toString().padLeft(3, '0');
 
               return ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: Colors.deepOrange,
+                  backgroundColor: Colors.blue.shade900,
                   foregroundColor: Colors.white,
-                  child: Text('#${b['id']}'),
+                  child: Text('No.$billNum', style: const TextStyle(fontSize: 10)),
                 ),
                 title: Text(b['customer_name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text('$formattedDate\nPayment: ${b['payment_mode']}'),
+                subtitle: Text('Date: $formattedDate | ${b['payment_mode']} BILL'),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('Rs. ${b['total_amount']}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
+                    Text('Rs. ${b['total_amount']}', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.blue.shade900)),
                     IconButton(
                       icon: const Icon(Icons.share, color: Colors.green),
                       onPressed: () async {
@@ -337,6 +368,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           billId: b['id'],
                           customerName: b['customer_name'],
                           customerPhone: '',
+                          customerAddress: '',
                           dateTime: b['date_time'],
                           paymentMode: b['payment_mode'],
                           totalAmount: (b['total_amount'] as num).toDouble(),
