@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'db_helper.dart';
 import 'pdf_invoice_service.dart';
 
@@ -7,12 +9,167 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const MaterialApp(
     debugShowCheckedModeBanner: false,
-    home: AmafhhApp(),
+    home: AppRoot(),
   ));
 }
 
+class AppRoot extends StatefulWidget {
+  const AppRoot({super.key});
+
+  @override
+  State<AppRoot> createState() => _AppRootState();
+}
+
+class _AppRootState extends State<AppRoot> {
+  bool _isLoading = true;
+  bool _isLoggedIn = false;
+  String _userName = '';
+  String _userPhone = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final name = prefs.getString('user_name') ?? '';
+    final phone = prefs.getString('user_phone') ?? '';
+
+    setState(() {
+      _userName = name;
+      _userPhone = phone;
+      _isLoggedIn = name.isNotEmpty && phone.isNotEmpty;
+      _isLoading = false;
+    });
+  }
+
+  void _onLoginSuccess(String name, String phone) {
+    setState(() {
+      _userName = name;
+      _userPhone = phone;
+      _isLoggedIn = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    return _isLoggedIn
+        ? AmafhhApp(userName: _userName, userPhone: _userPhone)
+        : LoginScreen(onLoginSuccess: _onLoginSuccess);
+  }
+}
+
+// ----------------- LOGIN / SETUP SCREEN -----------------
+class LoginScreen extends StatefulWidget {
+  final Function(String, String) onLoginSuccess;
+  const LoginScreen({super.key, required this.onLoginSuccess});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _nameController = TextEditingController(text: 'MD SULTAN AHMED');
+  final _phoneController = TextEditingController(text: '9986053878');
+
+  Future<void> _submitLogin() async {
+    final name = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
+
+    if (name.isEmpty || phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter both Name and Mobile Number')),
+      );
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_name', name);
+    await prefs.setString('user_phone', phone);
+
+    widget.onLoginSuccess(name, phone);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.blue.shade50,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Card(
+            elevation: 4,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade900,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text('AE', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(height: 12),
+                  Text('AMAFHH ENTERPRISES', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue.shade900)),
+                  const Text('Billing App Setup', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                  const SizedBox(height: 24),
+                  TextField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Author / Operator Name',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.person),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Mobile Number',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.phone),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade900,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: _submitLogin,
+                      child: const Text('Save & Continue', style: TextStyle(fontSize: 16)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ----------------- MAIN APP WITH PERMANENT SIGNATURE -----------------
 class AmafhhApp extends StatefulWidget {
-  const AmafhhApp({super.key});
+  final String userName;
+  final String userPhone;
+  const AmafhhApp({super.key, required this.userName, required this.userPhone});
 
   @override
   State<AmafhhApp> createState() => _AmafhhAppState();
@@ -24,7 +181,9 @@ class _AmafhhAppState extends State<AmafhhApp> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _currentIndex == 0 ? const BillingScreen() : const HistoryScreen(),
+      body: _currentIndex == 0
+          ? BillingScreen(userName: widget.userName, userPhone: widget.userPhone)
+          : const HistoryScreen(),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (idx) => setState(() => _currentIndex = idx),
@@ -38,7 +197,9 @@ class _AmafhhAppState extends State<AmafhhApp> {
 }
 
 class BillingScreen extends StatefulWidget {
-  const BillingScreen({super.key});
+  final String userName;
+  final String userPhone;
+  const BillingScreen({super.key, required this.userName, required this.userPhone});
 
   @override
   State<BillingScreen> createState() => _BillingScreenState();
@@ -55,7 +216,94 @@ class _BillingScreenState extends State<BillingScreen> {
   final _itemQtyController = TextEditingController(text: '1');
 
   final List<Map<String, dynamic>> _cart = [];
-  final List<Offset?> _points = []; // Stores user touch points
+  List<List<double?>> _savedSignature = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPermanentSignature();
+  }
+
+  Future<void> _loadPermanentSignature() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('permanent_signature');
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final List<dynamic> decoded = jsonDecode(raw);
+        setState(() {
+          _savedSignature = decoded.map<List<double?>>((item) {
+            return (item as List<dynamic>).map<double?>((val) => val != null ? (val as num).toDouble() : null).toList();
+          }).toList();
+        });
+      } catch (_) {}
+    }
+  }
+
+  void _openSignatureDialog() {
+    List<Offset?> tempPoints = [];
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Set Permanent Signature'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Draw your signature once. It will be automatically saved for all future bills.', style: TextStyle(fontSize: 12)),
+                  const SizedBox(height: 10),
+                  Container(
+                    height: 130,
+                    width: 280,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: Colors.blue.shade900, width: 1.5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: GestureDetector(
+                      onPanUpdate: (DragUpdateDetails details) {
+                        setDialogState(() {
+                          tempPoints.add(details.localPosition);
+                        });
+                      },
+                      onPanEnd: (DragEndDetails details) => tempPoints.add(null),
+                      child: CustomPaint(
+                        painter: SignaturePainter(points: tempPoints),
+                        size: Size.infinite,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => setDialogState(() => tempPoints.clear()),
+                  child: const Text('Clear', style: TextStyle(color: Colors.red)),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (tempPoints.isNotEmpty) {
+                      final serialized = tempPoints.map((p) => p != null ? [p.dx, p.dy] : [null, null]).toList();
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setString('permanent_signature', jsonEncode(serialized));
+
+                      setState(() {
+                        _savedSignature = serialized;
+                      });
+                    }
+                    if (context.mounted) Navigator.pop(dialogCtx);
+                  },
+                  child: const Text('Save Permanently'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 
   void _addManualItem() {
     final name = _itemNameController.text.trim();
@@ -91,15 +339,11 @@ class _BillingScreenState extends State<BillingScreen> {
     final address = _addressController.text.trim();
 
     if (customer.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter Customer / Shop Name')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter Customer / Shop Name')));
       return;
     }
     if (_cart.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add at least one item to the bill')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Add at least one item to the bill')));
       return;
     }
 
@@ -111,9 +355,7 @@ class _BillingScreenState extends State<BillingScreen> {
       items: _cart,
     );
 
-    // Convert drawn points for the PDF
-    final serializedPoints = _points.map((p) => p != null ? [p.dx, p.dy] : [null, null]).toList();
-
+    // Uses saved signature automatically
     await PdfInvoiceService.generateAndShareInvoice(
       billId: billId,
       customerName: customer,
@@ -123,7 +365,7 @@ class _BillingScreenState extends State<BillingScreen> {
       paymentMode: _paymentMode,
       totalAmount: _total,
       items: _cart,
-      signaturePoints: serializedPoints,
+      signaturePoints: _savedSignature.isNotEmpty ? _savedSignature : null,
     );
 
     if (mounted) {
@@ -132,7 +374,6 @@ class _BillingScreenState extends State<BillingScreen> {
         _customerController.clear();
         _phoneController.clear();
         _addressController.clear();
-        _points.clear();
       });
     }
   }
@@ -151,16 +392,33 @@ class _BillingScreenState extends State<BillingScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Store & Operator Status Card
               Card(
                 color: Colors.blue.shade50,
-                child: const Padding(
-                  padding: EdgeInsets.all(10.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                child: Padding(
+                  padding: const EdgeInsets.all(10.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Prop: MD SULTAN AHMED', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                      Text('Mob: 99860 53878 / 99862 68994 | WhatsApp: 90084 60450', style: TextStyle(fontSize: 12)),
-                      Text('Address: RML NAGAR 2nd CROSS, SHIVAMOGGA - 577202', style: TextStyle(fontSize: 11)),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Author: ${widget.userName}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          Text('Mob: ${widget.userPhone} / 99862 68994', style: const TextStyle(fontSize: 12)),
+                          const Text('RML NAGAR 2nd CROSS, SHIVAMOGGA', style: TextStyle(fontSize: 11)),
+                        ],
+                      ),
+                      // Permanent Signature Button
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _savedSignature.isNotEmpty ? Colors.green.shade800 : Colors.orange.shade800,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        ),
+                        icon: Icon(_savedSignature.isNotEmpty ? Icons.check_circle : Icons.edit, size: 16),
+                        label: Text(_savedSignature.isNotEmpty ? 'Sign Saved' : 'Set Sign', style: const TextStyle(fontSize: 11)),
+                        onPressed: _openSignatureDialog,
+                      ),
                     ],
                   ),
                 ),
@@ -284,45 +542,6 @@ class _BillingScreenState extends State<BillingScreen> {
                     ),
 
               const SizedBox(height: 16),
-
-              // Interactive Digital Signature Box
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Draw Signature Here:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                  TextButton.icon(
-                    icon: const Icon(Icons.clear, color: Colors.red),
-                    label: const Text('Clear Sign', style: TextStyle(color: Colors.red)),
-                    onPressed: () => setState(() => _points.clear()),
-                  ),
-                ],
-              ),
-              Container(
-                height: 110,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.blue.shade900, width: 1.5),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: GestureDetector(
-                  onPanUpdate: (DragUpdateDetails details) {
-                    RenderBox? renderBox = context.findRenderObject() as RenderBox?;
-                    if (renderBox != null) {
-                      setState(() {
-                        _points.add(details.localPosition);
-                      });
-                    }
-                  },
-                  onPanEnd: (DragEndDetails details) => _points.add(null),
-                  child: CustomPaint(
-                    painter: SignaturePainter(points: _points),
-                    size: Size.infinite,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
@@ -347,7 +566,6 @@ class _BillingScreenState extends State<BillingScreen> {
   }
 }
 
-// Custom Painter for Drawing on Canvas
 class SignaturePainter extends CustomPainter {
   final List<Offset?> points;
   SignaturePainter({required this.points});
