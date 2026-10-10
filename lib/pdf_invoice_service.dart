@@ -9,6 +9,7 @@ class PdfInvoiceService {
   static Future<void> generateAndShareInvoice({
     required int billId,
     required String customerName,
+    required String customerPhone,
     required String dateTime,
     required String paymentMode,
     required double totalAmount,
@@ -25,6 +26,7 @@ class PdfInvoiceService {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
+              // Header / Shop Name
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
@@ -32,17 +34,17 @@ class PdfInvoiceService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        'WHOLESALE JUICE DISTRIBUTOR',
-                        style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800),
+                        'ZeeSip Juice Center',
+                        style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.deepOrange800),
                       ),
-                      pw.Text('Main Market Yard'),
+                      pw.Text('Wholesale & Retail Juice Distributors'),
                     ],
                   ),
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
                       pw.Text('TAX INVOICE', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-                      pw.Text('Bill #: $billId'),
+                      pw.Text('Invoice #: $billId'),
                       pw.Text('Date: $formattedDate'),
                     ],
                   ),
@@ -50,11 +52,32 @@ class PdfInvoiceService {
               ),
               pw.SizedBox(height: 16),
               pw.Divider(),
-              pw.Text('Customer: $customerName', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-              pw.Text('Payment Mode: $paymentMode'),
+
+              // Customer Details
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('Billed To: $customerName', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                      if (customerPhone.isNotEmpty) pw.Text('Phone: $customerPhone'),
+                    ],
+                  ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text('Payment Mode: $paymentMode', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      pw.Text('Status: Confirmed'),
+                    ],
+                  ),
+                ],
+              ),
               pw.SizedBox(height: 16),
+
+              // Line Items Table
               pw.TableHelper.fromTextArray(
-                headers: ['#', 'Product', 'Rate (Rs)', 'Qty', 'Total (Rs)'],
+                headers: ['#', 'Item Description', 'Rate (Rs)', 'Qty', 'Total (Rs)'],
                 data: List<List<dynamic>>.generate(items.length, (index) {
                   final item = items[index];
                   return [
@@ -66,7 +89,7 @@ class PdfInvoiceService {
                   ];
                 }),
                 headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-                headerDecoration: const pw.BoxDecoration(color: PdfColors.blue800),
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.deepOrange800),
                 cellAlignment: pw.Alignment.centerLeft,
                 cellAlignments: {
                   0: pw.Alignment.center,
@@ -77,6 +100,8 @@ class PdfInvoiceService {
                 cellPadding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 8),
               ),
               pw.SizedBox(height: 20),
+
+              // Grand Total
               pw.Align(
                 alignment: pw.Alignment.centerRight,
                 child: pw.Text(
@@ -84,19 +109,27 @@ class PdfInvoiceService {
                   style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.green800),
                 ),
               ),
+              pw.Spacer(),
+              pw.Center(
+                child: pw.Text('Thank you for choosing ZeeSip Juice Center!', style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700)),
+              ),
             ],
           );
         },
       ),
     );
 
+    // Save PDF
     final outputDir = await getTemporaryDirectory();
-    final file = File('${outputDir.path}/Invoice_$billId.pdf');
+    final file = File('${outputDir.path}/ZeeSip_Bill_$billId.pdf');
     await file.writeAsBytes(await pdf.save());
 
+    // Share directly via WhatsApp
+    final shareMessage = 'Hello $customerName, here is your bill #$billId from *ZeeSip Juice Center* for Rs. ${totalAmount.toStringAsFixed(2)}.';
     await Share.shareXFiles(
       [XFile(file.path)],
-      text: 'Invoice #$billId for $customerName. Total: Rs. ${totalAmount.toStringAsFixed(2)}',
+      text: shareMessage,
+      subject: 'ZeeSip Invoice #$billId',
     );
   }
 }
